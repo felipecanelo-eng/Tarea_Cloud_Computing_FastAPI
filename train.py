@@ -681,5 +681,3 @@ print("========================================")
 print(f"\nE1 -> train.py")
 print(f"E2 -> model/model.pkl")
 print(f"Metadata -> model/metadata.json")
-
-joblib.dump(pipeline, "model/model.pkl")
