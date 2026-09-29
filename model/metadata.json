@@ -1,0 +1,86 @@
+{
+    "model_name": "Sleep Debt XGBoost Classifier",
+    "model_type": "XGBClassifier",
+    "problem_type": "multiclass_classification",
+    "target": "sleep_debt_category",
+    "created_at_utc": "2026-09-29T22:27:15.895652+00:00",
+    "python_version": "3.12.10",
+    "sklearn_version": "1.9.1",
+    "xgboost_version": "3.4.1",
+    "pandas_version": "3.0.6",
+    "random_state": 42,
+    "test_size": 0.2,
+    "dataset_rows": 8500,
+    "train_rows": 6800,
+    "test_rows": 1700,
+    "features": [
+        "age",
+        "gender",
+        "occupation_type",
+        "chronotype",
+        "bedtime_phone_minutes",
+        "primary_bedtime_app",
+        "screen_brightness_pct",
+        "blue_light_filter_active",
+        "caffeine_post_5pm_mg",
+        "physical_activity_min"
+    ],
+    "categorical_features": [
+        "gender",
+        "occupation_type",
+        "chronotype",
+        "primary_bedtime_app"
+    ],
+    "numerical_features": [
+        "age",
+        "bedtime_phone_minutes",
+        "screen_brightness_pct",
+        "blue_light_filter_active",
+        "caffeine_post_5pm_mg",
+        "physical_activity_min"
+    ],
+    "class_names": [
+        "Mild Deficit",
+        "Moderate Debt",
+        "Optimal Recovery",
+        "Severe Sleep Debt"
+    ],
+    "class_to_int": {
+        "Mild Deficit": 0,
+        "Moderate Debt": 1,
+        "Optimal Recovery": 2,
+        "Severe Sleep Debt": 3
+    },
+    "int_to_class": {
+        "0": "Mild Deficit",
+        "1": "Moderate Debt",
+        "2": "Optimal Recovery",
+        "3": "Severe Sleep Debt"
+    },
+    "target_distribution": {
+        "Moderate Debt": 4462,
+        "Mild Deficit": 2004,
+        "Optimal Recovery": 1387,
+        "Severe Sleep Debt": 647
+    },
+    "metrics": {
+        "accuracy": 0.6765,
+        "balanced_accuracy": 0.7137,
+        "f1_macro": 0.6559,
+        "roc_auc_ovr_macro": 0.9045
+    },
+    "metric_justification": {
+        "f1_macro": "Selected because the target classes are imbalanced and macro F1 gives equal importance to each class.",
+        "balanced_accuracy": "Selected because it averages recall across classes and prevents the majority class from dominating evaluation.",
+        "roc_auc_ovr_macro": "Additional probability-based multiclass metric using one-vs-rest evaluation."
+    },
+    "excluded_columns": {
+        "user_id": "Identifier; no predictive meaning.",
+        "sleep_latency_min": "Post-bedtime sleep outcome; excluded to reduce leakage.",
+        "total_sleep_hours": "Direct sleep outcome strongly associated with the target; excluded to reduce target leakage.",
+        "deep_sleep_pct": "Post-sleep physiological outcome.",
+        "rem_sleep_pct": "Post-sleep physiological outcome.",
+        "morning_alarm_snoozes": "Observed after the sleep episode.",
+        "next_day_fatigue_score": "Observed after sleep and strongly related to sleep debt."
+    }
+}
