@@ -68,6 +68,24 @@ print("========================================")
 print(f"Rows:    {df.shape[0]}")
 print(f"Columns: {df.shape[1]}")
 
+# ============================================================
+# DATA QUALITY CHECK
+# ============================================================
+
+print("\n========================================")
+print("DATA QUALITY")
+print("========================================")
+
+print("\nMissing values by column:")
+print(df.isnull().sum())
+
+print(
+    "\nTotal duplicated rows:",
+    df.duplicated().sum()
+)
+
+print("\nData types:")
+print(df.dtypes)
 
 # ============================================================
 # 3. DEFINE TARGET
