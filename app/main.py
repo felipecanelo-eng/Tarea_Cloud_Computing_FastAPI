@@ -5,6 +5,7 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from enum import Enum
 import json
 
 import joblib
@@ -27,17 +28,53 @@ METADATA_PATH = ROOT_DIR / "model" / "metadata.json"
 # ============================================================
 # 2. GLOBAL MODEL OBJECTS
 # ============================================================
-#
-# They are loaded once when the application starts.
-# They are NOT reloaded for every prediction request.
-# ============================================================
 
 model = None
 metadata = None
 
 
 # ============================================================
-# 3. LOAD MODEL AT APPLICATION STARTUP
+# 3. VALID CATEGORICAL VALUES
+# ============================================================
+#
+# These values come directly from the categories present
+# in the training dataset.
+#
+# Using Enum prevents unseen categorical values from reaching
+# the model. FastAPI/Pydantic will return HTTP 422 automatically.
+# ============================================================
+
+class Gender(str, Enum):
+    FEMALE = "Female"
+    MALE = "Male"
+    NON_BINARY = "Non-Binary"
+
+
+class OccupationType(str, Enum):
+    CORPORATE = "Corporate 9-to-5"
+    FREELANCE = "Freelance / Creative"
+    HEALTHCARE = "Healthcare / Shift Worker"
+    REMOTE_TECH = "Remote Tech"
+    STUDENT = "Student"
+
+
+class Chronotype(str, Enum):
+    INTERMEDIATE = "Intermediate"
+    MORNING_LARK = "Morning Lark"
+    NIGHT_OWL = "Night Owl"
+
+
+class BedtimeApp(str, Enum):
+    INSTAGRAM_REDDIT = "Instagram / Reddit"
+    MESSAGING_CHAT = "Messaging / Chat"
+    NEWS_READING = "News / Reading"
+    STREAMING = "Streaming (Netflix/Hulu)"
+    TIKTOK_REELS = "TikTok / Reels"
+    YOUTUBE = "YouTube"
+
+
+# ============================================================
+# 4. LOAD MODEL AT APPLICATION STARTUP
 # ============================================================
 
 @asynccontextmanager
@@ -47,6 +84,7 @@ async def lifespan(app: FastAPI):
     global metadata
 
     try:
+
         model = joblib.load(MODEL_PATH)
 
         with open(
@@ -60,6 +98,7 @@ async def lifespan(app: FastAPI):
         print(f"Model: {metadata['model_name']}")
 
     except Exception as exc:
+
         model = None
         metadata = None
 
@@ -71,7 +110,7 @@ async def lifespan(app: FastAPI):
 
 
 # ============================================================
-# 4. CREATE FASTAPI APPLICATION
+# 5. CREATE FASTAPI APPLICATION
 # ============================================================
 
 app = FastAPI(
@@ -86,18 +125,7 @@ app = FastAPI(
 
 
 # ============================================================
-# 5. INPUT SCHEMA
-# ============================================================
-#
-# These are the SAME 10 raw variables used during training.
-#
-# We do NOT manually encode categorical variables here.
-# The serialized model.pkl contains:
-#
-#   preprocessing
-#       +
-#   XGBoost classifier
-#
+# 6. INPUT SCHEMA
 # ============================================================
 
 class SleepDebtInput(BaseModel):
@@ -109,21 +137,18 @@ class SleepDebtInput(BaseModel):
         description="Age of the person",
     )
 
-    gender: str = Field(
+    gender: Gender = Field(
         ...,
-        min_length=1,
         description="Gender category",
     )
 
-    occupation_type: str = Field(
+    occupation_type: OccupationType = Field(
         ...,
-        min_length=1,
         description="Occupation type",
     )
 
-    chronotype: str = Field(
+    chronotype: Chronotype = Field(
         ...,
-        min_length=1,
         description="Chronotype category",
     )
 
@@ -133,9 +158,8 @@ class SleepDebtInput(BaseModel):
         description="Minutes of phone use around bedtime",
     )
 
-    primary_bedtime_app: str = Field(
+    primary_bedtime_app: BedtimeApp = Field(
         ...,
-        min_length=1,
         description="Primary application used at bedtime",
     )
 
@@ -167,7 +191,7 @@ class SleepDebtInput(BaseModel):
 
 
 # ============================================================
-# 6. OUTPUT SCHEMA
+# 7. OUTPUT SCHEMA
 # ============================================================
 
 class PredictionResponse(BaseModel):
@@ -180,7 +204,7 @@ class PredictionResponse(BaseModel):
 
 
 # ============================================================
-# 7. HELPER FUNCTION
+# 8. HELPER FUNCTION
 # ============================================================
 
 def predict_one(
@@ -188,6 +212,7 @@ def predict_one(
 ) -> PredictionResponse:
 
     if model is None or metadata is None:
+
         raise HTTPException(
             status_code=500,
             detail="Model is not available.",
@@ -195,22 +220,30 @@ def predict_one(
 
     try:
 
-        # --------------------------------------------
-        # Convert Pydantic input into one-row DataFrame
-        # --------------------------------------------
+        # ----------------------------------------------------
+        # Convert validated Pydantic input into plain JSON
+        # values.
+        #
+        # mode="json" is important because Enum values become
+        # their original strings before reaching scikit-learn.
+        # ----------------------------------------------------
 
         row = pd.DataFrame(
-            [input_data.model_dump()]
+            [
+                input_data.model_dump(
+                    mode="json"
+                )
+            ]
         )
 
-        # Enforce the exact feature order used in training
+        # Exact feature order used during training
         row = row[
             metadata["features"]
         ]
 
-        # --------------------------------------------
+        # ----------------------------------------------------
         # Prediction
-        # --------------------------------------------
+        # ----------------------------------------------------
 
         prediction_code = int(
             model.predict(row)[0]
@@ -232,11 +265,12 @@ def predict_one(
             ]
         )
 
-        # --------------------------------------------
+        # ----------------------------------------------------
         # Probability for every class
-        # --------------------------------------------
+        # ----------------------------------------------------
 
         probabilities = {
+
             metadata["int_to_class"][str(i)]:
                 round(float(prob), 6)
 
@@ -245,13 +279,18 @@ def predict_one(
         }
 
         return PredictionResponse(
+
             prediction=prediction_label,
+
             prediction_code=prediction_code,
+
             probability=round(
                 probability,
                 6,
             ),
+
             probabilities=probabilities,
+
             model_version="1.0.0",
         )
 
@@ -270,7 +309,7 @@ def predict_one(
 
 
 # ============================================================
-# 8. ROOT ENDPOINT
+# 9. ROOT ENDPOINT
 # ============================================================
 
 @app.get("/")
@@ -286,13 +325,14 @@ def root():
 
 
 # ============================================================
-# 9. HEALTH ENDPOINT
+# 10. HEALTH ENDPOINT
 # ============================================================
 
 @app.get("/health")
 def health():
 
     return {
+
         "status":
             "ok"
             if model is not None
@@ -304,13 +344,14 @@ def health():
 
 
 # ============================================================
-# 10. MODEL INFORMATION ENDPOINT
+# 11. MODEL INFORMATION ENDPOINT
 # ============================================================
 
 @app.get("/model-info")
 def model_info():
 
     if metadata is None:
+
         raise HTTPException(
             status_code=500,
             detail="Model metadata is not available.",
@@ -354,7 +395,7 @@ def model_info():
 
 
 # ============================================================
-# 11. SINGLE PREDICTION ENDPOINT
+# 12. SINGLE PREDICTION ENDPOINT
 # ============================================================
 
 @app.post(
@@ -371,7 +412,7 @@ def predict(
 
 
 # ============================================================
-# 12. BATCH PREDICTION ENDPOINT
+# 13. BATCH PREDICTION ENDPOINT
 # ============================================================
 
 @app.post(
@@ -383,6 +424,7 @@ def predict_batch(
 ):
 
     if len(inputs) == 0:
+
         raise HTTPException(
             status_code=422,
             detail=(
